@@ -1,0 +1,156 @@
+CREATE TABLE IF NOT EXISTS users (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(120) NOT NULL,
+    email VARCHAR(180) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(30) NOT NULL DEFAULT 'CUSTOMER',
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token VARCHAR(500) UNIQUE NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS categories (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(100) UNIQUE NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS brands (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(100) UNIQUE NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS products (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(160) NOT NULL,
+    description TEXT,
+    price NUMERIC(12,2) NOT NULL CHECK(price >= 0),
+    stock INTEGER NOT NULL CHECK(stock >= 0),
+    category_id BIGINT REFERENCES categories(id),
+    brand_id BIGINT REFERENCES brands(id),
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS carts (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS cart_items (
+    id BIGSERIAL PRIMARY KEY,
+    cart_id BIGINT NOT NULL REFERENCES carts(id) ON DELETE CASCADE,
+    product_id BIGINT NOT NULL REFERENCES products(id),
+    quantity INTEGER NOT NULL CHECK(quantity > 0),
+    UNIQUE(cart_id, product_id)
+);
+
+CREATE TABLE IF NOT EXISTS coupons (
+    id BIGSERIAL PRIMARY KEY,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    discount_type VARCHAR(20) NOT NULL,
+    discount_value NUMERIC(12,2) NOT NULL,
+    minimum_cart_value NUMERIC(12,2) NOT NULL DEFAULT 0,
+    usage_limit INTEGER NOT NULL DEFAULT 100,
+    used_count INTEGER NOT NULL DEFAULT 0,
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS orders (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    subtotal NUMERIC(12,2) NOT NULL,
+    discount NUMERIC(12,2) NOT NULL DEFAULT 0,
+    tax NUMERIC(12,2) NOT NULL DEFAULT 0,
+    shipping NUMERIC(12,2) NOT NULL DEFAULT 0,
+    total_amount NUMERIC(12,2) NOT NULL,
+    status VARCHAR(30) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS order_items (
+    id BIGSERIAL PRIMARY KEY,
+    order_id BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    product_id BIGINT NOT NULL REFERENCES products(id),
+    quantity INTEGER NOT NULL,
+    unit_price NUMERIC(12,2) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS payments (
+    id BIGSERIAL PRIMARY KEY,
+    order_id BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    amount NUMERIC(12,2) NOT NULL,
+    method VARCHAR(30) NOT NULL,
+    status VARCHAR(30) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS reviews (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id),
+    product_id BIGINT NOT NULL REFERENCES products(id),
+    rating INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),
+    comment TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT,
+    action VARCHAR(120) NOT NULL,
+    entity_type VARCHAR(80),
+    entity_id VARCHAR(80),
+    details TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(50) NOT NULL,
+    message TEXT NOT NULL,
+    read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS analytics_events (
+    event_id VARCHAR(160) PRIMARY KEY,
+    event_type VARCHAR(80) NOT NULL,
+    user_id BIGINT,
+    order_id BIGINT,
+    amount NUMERIC(12,2),
+    payload JSONB,
+    event_timestamp TIMESTAMPTZ NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS data_quality_failures (
+    id BIGSERIAL PRIMARY KEY,
+    event_id VARCHAR(160),
+    rule_name VARCHAR(100) NOT NULL,
+    severity VARCHAR(20) NOT NULL,
+    reason TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS pipeline_runs (
+    id BIGSERIAL PRIMARY KEY,
+    pipeline_name VARCHAR(120) NOT NULL,
+    status VARCHAR(30) NOT NULL,
+    records_processed BIGINT NOT NULL DEFAULT 0,
+    records_rejected BIGINT NOT NULL DEFAULT 0,
+    quality_score NUMERIC(6,2),
+    started_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    finished_at TIMESTAMPTZ
+);
+
+CREATE OR REPLACE VIEW daily_sales AS
+SELECT DATE(created_at) sales_date, COUNT(*) orders, SUM(total_amount) revenue,
+       AVG(total_amount) average_order_value
+FROM orders WHERE status='CONFIRMED'
+GROUP BY DATE(created_at)
+ORDER BY sales_date;

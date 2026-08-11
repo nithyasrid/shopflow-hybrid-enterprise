@@ -1,0 +1,9 @@
+{
+  "info": {"name": "ShopFlow Demo"},
+  "item": [
+    {"name":"Health","request":{"method":"GET","url":"http://localhost:8080/api/health"}},
+    {"name":"Register","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"name\":\"Nithu\",\"email\":\"nithu@example.com\",\"password\":\"Password@123\",\"role\":\"CUSTOMER\"}"},"url":"http://localhost:8080/api/auth/register"}},
+    {"name":"Login","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"email\":\"nithu@example.com\",\"password\":\"Password@123\"}"},"url":"http://localhost:8080/api/auth/login"}},
+    {"name":"Products","request":{"method":"GET","url":"http://localhost:8080/api/products"}}
+  ]
+}

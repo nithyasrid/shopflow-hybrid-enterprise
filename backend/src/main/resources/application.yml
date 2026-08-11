@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: shopflow-backend
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/shopflow}
+    username: ${SPRING_DATASOURCE_USERNAME:shopflow}
+    password: ${SPRING_DATASOURCE_PASSWORD:shopflow}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+  kafka:
+    bootstrap-servers: ${SHOPFLOW_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+server:
+  port: 8080
+jwt:
+  secret: ${JWT_SECRET:ShopFlowDemoSecretKeyChangeMeToAReallyLongRandomSecret123456789}
+  access-minutes: 30
+  refresh-days: 7
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
